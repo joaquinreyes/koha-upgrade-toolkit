@@ -27,4 +27,16 @@ if [ "$1" = "memcached" ] && [ "$2" = "restart" ]; then
     sleep 1
     exec /usr/sbin/service memcached start
 fi
+# RabbitMQ: tras subir Debian, el script init nuevo no puede detener el nodo Erlang
+# viejo. Se detiene a la fuerza y se inicia de nuevo; si no inicia se avisa (Koha
+# funciona sin RabbitMQ: las tareas en segundo plano usan la BD).
+if [ "$1" = "rabbitmq-server" ] && [ "$2" = "restart" ]; then
+    /usr/sbin/service rabbitmq-server stop >/dev/null 2>&1 || true
+    pkill -f beam.smp 2>/dev/null || true
+    pkill -x epmd 2>/dev/null || true
+    sleep 3
+    if /usr/sbin/service rabbitmq-server start; then exit 0; fi
+    echo "AVISO (CI): rabbitmq-server no inicio en el contenedor" >&2
+    exit 0
+fi
 exec /usr/sbin/service "$@"
