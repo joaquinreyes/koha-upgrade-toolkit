@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck scripts/*.sh scripts/lib/*.sh tests/ci/*.sh
+      - name: perl syntax
+        run: |
+          for f in tests/ci/generate_marc.pl; do perl -c "$f" || true; done
+          bash -n scripts/*.sh
+
+  upgrade-path:
+    name: Koha 21.05 (Debian 11) -> 22.11 -> Debian 12 -> Koha stable
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    container:
+      image: debian:bullseye
+    env:
+      INST: ci
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Koha 21.05 + MariaDB + 50 registros de ejemplo
+        run: tests/ci/setup-koha.sh "$INST" 21.05 50
+
+      - name: 00 preflight (21.05)
+        run: scripts/00-preflight.sh "$INST" --min-free-gb 2
+
+      - name: Linea base de conteos
+        run: tests/ci/assert-counts.sh save "$INST" /tmp/baseline.txt
+
+      - name: 60 healthcheck (21.05)
+        run: scripts/60-healthcheck.sh "$INST"
+
+      - name: 10 backup (con copia externa verificada)
+        run: |
+          mkdir -p /tmp/external-disk
+          scripts/10-backup.sh "$INST" --copy-to /tmp/external-disk
+          ls -la /var/backups/koha-toolkit/"$INST"/*/
+
+      - name: 15 restore test (21.05)
+        run: scripts/15-restore-test.sh "$INST"
+
+      - name: 15 restore test detecta respaldo corrupto
+        run: |
+          B="$(cat /var/backups/koha-toolkit/$INST/LATEST)"
+          cp -a "$B" /tmp/corrupt
+          echo "-- basura" | gzip >> /tmp/corrupt/db.sql.gz
+          if scripts/15-restore-test.sh "$INST" --backup /tmp/corrupt; then
+            echo "ERROR: el respaldo corrupto no fue detectado"; exit 1
+          fi
+          echo "OK: respaldo corrupto detectado"
+
+      - name: 20 upgrade Koha 21.05 -> 22.11 (Debian 11)
+        run: scripts/20-upgrade.sh "$INST" --to 22.11 --yes
+
+      - name: Conteos tras 22.11
+        run: tests/ci/assert-counts.sh compare "$INST" /tmp/baseline.txt
+
+      - name: 25 Debian 11 -> 12 (bullseye -> bookworm)
+        run: scripts/25-os-upgrade.sh "$INST" --release --yes
+
+      - name: 20 upgrade Koha 22.11 -> stable (Debian 12)
+        run: scripts/20-upgrade.sh "$INST" --to stable --yes
+
+      - name: 00 preflight (despues)
+        run: scripts/00-preflight.sh "$INST" --min-free-gb 2
+
+      - name: 30 mantenimiento BD (optimize + reporte)
+        run: |
+          scripts/30-db-maintenance.sh "$INST" --optimize --report /tmp/db-report.txt
+          grep -q '^## ISBN duplicados (grupos): 1$' /tmp/db-report.txt
+          grep -q '^## Titulo+autor duplicados (grupos): 1$' /tmp/db-report.txt
+          grep -q '^## Items sin biblio: 0$' /tmp/db-report.txt
+          grep -q '^## Biblios sin biblio_metadata (registro MARC): 0$' /tmp/db-report.txt
+
+      - name: 40 reindex Zebra completo
+        run: scripts/40-reindex.sh "$INST"
+
+      - name: 50 security check
+        run: |
+          set +e
+          scripts/50-security-check.sh "$INST" --url "http://$INST.koha.test"
+          rc=$?
+          echo "exit=$rc (1 = hallazgos; esperado en un contenedor sin SSL)"
+          [ "$rc" -le 1 ]
+
+      - name: 60 healthcheck (stable)
+        run: scripts/60-healthcheck.sh "$INST"
+
+      - name: Verificacion final
+        run: |
+          . scripts/lib/common.sh
+          tests/ci/assert-counts.sh compare "$INST" /tmp/baseline.txt
+          STABLE="$(curl -fsSL https://debian.koha-community.org/koha/dists/stable/Release | sed -n 's/^Codename: *//p')"
+          INSTALLED="$(version_series "$(koha_code_version)")"
+          echo "Serie stable del repositorio: $STABLE / instalada: $INSTALLED / paquete: $(koha_pkg_version) / SO: $(os_release PRETTY_NAME)"
+          [ "$STABLE" = "$INSTALLED" ]
+          [ "$(koha_db_version "$INST")" = "$(code_version_to_db "$(koha_code_version)")" ]
+          echo "koha_from=21.05" >> "$GITHUB_STEP_SUMMARY"
+          echo "koha_to=$(koha_pkg_version)" >> "$GITHUB_STEP_SUMMARY"
+          echo "os=$(os_release PRETTY_NAME)" >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/baseline.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 10 + 15 respaldo y restauracion despues de actualizar
+        run: |
+          scripts/10-backup.sh "$INST" --keep 2
+          scripts/15-restore-test.sh "$INST"
+
+      - name: Guardar logs
+        if: always()
+        run: |
+          mkdir -p /tmp/ci-logs
+          cp -r /var/log/koha-toolkit /tmp/ci-logs/ 2>/dev/null || true
+          cp -r /var/log/koha/"$INST" /tmp/ci-logs/koha 2>/dev/null || true
+          cp /tmp/db-report.txt /tmp/ci-logs/ 2>/dev/null || true
+          cp -r /var/log/apache2 /tmp/ci-logs/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs
+          path: /tmp/ci-logs
