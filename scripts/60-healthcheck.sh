@@ -122,7 +122,7 @@ else
         ENC="$(printf '%s' "$TERM_Q" | sed 's/ /+/g')"
         BODY_FILE="$(make_tmp)"
         EFFECTIVE="$(xcurl "${OPAC_URL%/}/cgi-bin/koha/opac-search.pl?q=$ENC" -L -o "$BODY_FILE" -w '%{url_effective}' || true)"
-        NLINKS="$(grep -o 'opac-detail.pl?biblionumber=[0-9]*' "$BODY_FILE" | sort -u | wc -l | tr -d ' ')"
+        NLINKS="$( (grep -o 'opac-detail.pl?biblionumber=[0-9]*' "$BODY_FILE" || true) | sort -u | wc -l | tr -d ' ')"
         if [[ "$EFFECTIVE" == *opac-detail.pl* ]] || [ "$NLINKS" -gt 0 ]; then
             ok "OPAC: busqueda '$TERM_Q' devuelve resultados ($NLINKS registros enlazados)"
         else

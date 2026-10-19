@@ -44,7 +44,10 @@ echo "127.0.0.1 $INST.koha.test $INST-intra.koha.test" >> /etc/hosts
 service memcached start || true
 service apache2 start
 echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf
-a2enconf servername >/dev/null
+# Solo CI: en contenedores Docker mpm-itk no puede usar capabilities (setgid falla con
+# "Operation not permitted"); con EnableCapabilities Off usa el modo clasico como root.
+printf '<IfModule mpm_itk_module>\n    EnableCapabilities Off\n</IfModule>\n' > /etc/apache2/conf-available/itk-container.conf
+a2enconf servername itk-container >/dev/null
 if ! koha-create --create-db "$INST"; then
     echo "koha-create fallo; diagnostico de Apache:"
     apache2ctl configtest || true
@@ -73,6 +76,9 @@ if [ -n "$SUPER" ]; then
 else
     koha-mysql "$INST" -e "UPDATE borrowers SET flags=1, userid='ciadmin' WHERE borrowernumber=(SELECT b FROM (SELECT MIN(borrowernumber) b FROM borrowers) x)"
 fi
+# Plack se inicio antes de crear el esquema: reiniciar (como tras el instalador web).
+koha-plack --restart "$INST"
+service memcached restart
 koha-rebuild-zebra -f -v "$INST"
 koha-zebra --restart "$INST" || koha-zebra --start "$INST" || true
 echo "::endgroup::"
