@@ -77,7 +77,9 @@ else
     koha-mysql "$INST" -e "UPDATE borrowers SET flags=1, userid='ciadmin' WHERE borrowernumber=(SELECT b FROM (SELECT MIN(borrowernumber) b FROM borrowers) x)"
 fi
 # Plack se inicio antes de crear el esquema: reiniciar (como tras el instalador web).
-koha-plack --restart "$INST"
+# shellcheck source=../../scripts/lib/common.sh
+. "$HERE/../../scripts/lib/common.sh"
+plack_restart "$INST"
 service memcached restart
 koha-rebuild-zebra -f -v "$INST"
 koha-zebra --restart "$INST" || koha-zebra --start "$INST" || true

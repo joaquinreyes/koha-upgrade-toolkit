@@ -192,3 +192,21 @@ koha_perl() {
 }
 
 instance_user() { printf '%s-koha' "$1"; }
+
+# Reinicia Plack de forma robusta: a veces starman no termina a tiempo
+# ("refused to die"). Espera, fuerza el cierre si hace falta y vuelve a iniciar.
+plack_restart() {
+    local inst="$1" i=0 user
+    user="$(instance_user "$inst")"
+    if run koha-plack --restart "$inst"; then return 0; fi
+    warn "koha-plack --restart $inst fallo; deteniendo y reiniciando a mano."
+    run koha-plack --stop "$inst" || true
+    while pgrep -u "$user" -f starman >/dev/null 2>&1 && [ "$i" -lt 30 ]; do sleep 1; i=$((i + 1)); done
+    if pgrep -u "$user" -f starman >/dev/null 2>&1; then
+        warn "starman de $inst sigue activo; enviando SIGKILL."
+        run pkill -KILL -u "$user" -f starman || true
+        sleep 2
+    fi
+    rm -f "/var/run/koha/$inst/plack.pid"
+    run koha-plack --start "$inst"
+}

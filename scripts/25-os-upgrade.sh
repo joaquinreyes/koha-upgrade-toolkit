@@ -108,7 +108,7 @@ esac
 # Servicios Koha.
 for inst in $(koha-list); do
     if koha-list --plack 2>/dev/null | grep -qx "$inst"; then
-        run koha-plack --restart "$inst" || warn "koha-plack --restart $inst fallo"
+        plack_restart "$inst" || warn "No se pudo reiniciar Plack de $inst"
     fi
     run koha-zebra --restart "$inst" || warn "koha-zebra --restart $inst fallo"
 done
