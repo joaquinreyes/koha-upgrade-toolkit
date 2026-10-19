@@ -29,10 +29,8 @@ jobs:
         run: |
           shellcheck --version
           shellcheck scripts/*.sh scripts/lib/*.sh tests/ci/*.sh
-      - name: perl syntax
-        run: |
-          for f in tests/ci/generate_marc.pl; do perl -c "$f" || true; done
-          bash -n scripts/*.sh
+      - name: bash syntax
+        run: for f in scripts/*.sh tests/ci/*.sh; do bash -n "$f"; done
 
   upgrade-path:
     name: Koha 21.05 (Debian 11) -> 22.11 -> Debian 12 -> Koha stable

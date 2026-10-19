@@ -9,7 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "::group::Paquetes base"
 apt-get update -q
-apt-get install -y -q curl gnupg ca-certificates procps rsync openssl
+apt-get install -y -q curl gnupg ca-certificates procps rsync openssl sudo
 curl -fsSL https://debian.koha-community.org/koha/gpg.asc | gpg --dearmor > /usr/share/keyrings/koha-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/koha-keyring.gpg] https://debian.koha-community.org/koha $SERIES main" > /etc/apt/sources.list.d/koha.list
 apt-get update -q
@@ -27,6 +27,8 @@ a2dismod mpm_event >/dev/null 2>&1 || true
 a2enmod mpm_itk rewrite cgi headers proxy_http >/dev/null
 a2dissite 000-default >/dev/null 2>&1 || true
 sed -i -e 's/^DOMAIN=.*/DOMAIN=".koha.test"/' -e 's/^INTRAPORT=.*/INTRAPORT="80"/' -e 's/^OPACPORT=.*/OPACPORT="80"/' /etc/koha/koha-sites.conf
+# Nombres de los sitios de Apache para pruebas locales.
+echo "127.0.0.1 $INST.koha.test $INST-intra.koha.test" >> /etc/hosts
 service memcached start || true
 service apache2 start
 koha-create --create-db "$INST"
