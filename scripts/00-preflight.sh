@@ -116,7 +116,9 @@ SERIES="$(version_series "${CODE_VER:-0.0}")"
 echo "Serie actual:       $SERIES"
 case "$OS_CODENAME" in
     stretch|buster) warn "Debian $OS_CODENAME esta fuera de soporte. Planifique actualizar el SO (ver docs/checklist-actualizacion.md)." ;;
-    bullseye) warn "Debian 11 (bullseye) termino su soporte LTS en 2026. Ruta sugerida: Koha -> 22.11 en bullseye, SO -> bookworm, Koha -> stable." ;;
+    bullseye) grep -rqs 'archive.debian.org' /etc/apt/sources.list /etc/apt/sources.list.d/ || \
+                  warn "Debian 11 ya esta en archive.debian.org; si apt da 404, ajuste /etc/apt/sources.list (ver checklist)."
+              warn "Debian 11 (bullseye) termino su soporte LTS en 2026. Ruta sugerida: Koha -> 22.11 en bullseye, SO -> bookworm, Koha -> stable." ;;
 esac
 
 echo "--------------------------------------------------"

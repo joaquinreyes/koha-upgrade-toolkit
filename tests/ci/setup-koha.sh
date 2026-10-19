@@ -41,7 +41,16 @@ sed -i -e 's/^DOMAIN=.*/DOMAIN=".koha.test"/' -e 's/^INTRAPORT=.*/INTRAPORT="80"
 echo "127.0.0.1 $INST.koha.test $INST-intra.koha.test" >> /etc/hosts
 service memcached start || true
 service apache2 start
-koha-create --create-db "$INST"
+echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf
+a2enconf servername >/dev/null
+if ! koha-create --create-db "$INST"; then
+    echo "koha-create fallo; diagnostico de Apache:"
+    apache2ctl configtest || true
+    apache2ctl start || true
+    sed -n '1,80p' "/etc/apache2/sites-available/$INST.conf"
+    tail -n 30 /var/log/apache2/error.log || true
+    exit 1
+fi
 koha-plack --enable "$INST"
 koha-plack --start "$INST" || true
 service apache2 restart

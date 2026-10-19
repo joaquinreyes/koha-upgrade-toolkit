@@ -14,6 +14,10 @@ Ejemplo: Koha 21.05 sobre Debian 11 a la ultima version estable.
 - [ ] Leer las notas de version de cada serie intermedia (https://koha-community.org/category/releases/).
 - [ ] Confirmar espacio libre: al menos 3 veces el tamano de la BD en `/var`.
 - [ ] Confirmar que el SO soporta la serie destino (ver tabla abajo).
+- [ ] Debian 10 y 11 ya no tienen soporte: sus paquetes se movieron a `archive.debian.org`.
+      Si `apt-get update` o `apt-get install` dan error 404, cambie `/etc/apt/sources.list` a
+      `http://archive.debian.org/debian` y `http://archive.debian.org/debian-security`
+      (la CI de este proyecto lo hace asi). `25-os-upgrade.sh --release` vuelve a `deb.debian.org` al subir de version.
 - [ ] Ideal: probar todo el proceso primero en una copia del servidor (snapshot o VM).
 
 ## 2. Respaldo (el mismo dia)
