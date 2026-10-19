@@ -93,7 +93,7 @@ if pgrep -x apache2 >/dev/null 2>&1 || pgrep -f /usr/sbin/apache2 >/dev/null 2>&
 http_check() {
     local label="$1" url="$2" code t
     [ -n "$url" ] || { F "$label: no se pudo determinar la URL (use --opac-url/--staff-url)"; return 0; }
-    read -r code t < <(xcurl "$url" -o /dev/null -w '%{http_code} %{time_total}' || echo "000 0")
+    read -r code t < <(xcurl "$url" -o /dev/null -w '%{http_code} %{time_total}\n' || echo "000 0") || true
     if [ "$code" = "200" ]; then ok "$label $url -> HTTP $code (${t}s)"; else F "$label $url -> HTTP $code"; fi
 }
 http_check "OPAC" "${OPAC_URL%/}/"
