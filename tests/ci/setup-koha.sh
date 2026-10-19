@@ -33,6 +33,8 @@ dpkg-query -W koha-common
 echo "::endgroup::"
 
 echo "::group::Apache e instancia"
+install -m 755 "$HERE/service-shim.sh" /usr/local/sbin/service
+hash -r
 a2dismod mpm_event >/dev/null 2>&1 || true
 a2enmod mpm_itk rewrite cgi headers proxy_http >/dev/null
 a2dissite 000-default >/dev/null 2>&1 || true
