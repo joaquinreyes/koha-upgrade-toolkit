@@ -20,4 +20,11 @@ if [ "$1" = "apache2" ]; then
             ;;
     esac
 fi
+# El script init de memcached tambien falla al reiniciar dentro del contenedor.
+if [ "$1" = "memcached" ] && [ "$2" = "restart" ]; then
+    /usr/sbin/service memcached stop >/dev/null 2>&1 || true
+    pkill -x memcached 2>/dev/null || true
+    sleep 1
+    exec /usr/sbin/service memcached start
+fi
 exec /usr/sbin/service "$@"

@@ -186,7 +186,10 @@ upgrade_hop() {
         die "Sin cambios en Koha. Probablemente esta serie requiere una version de SO mas nueva (ver 25-os-upgrade.sh)."
     fi
     log "Instalando koha-common de la serie $target (log: $LOG_DIR/apt-$stamp.log)..."
-    apt-get install "${APT_OPTS[@]}" koha-common 2>&1 | tee "$LOG_DIR/apt-$stamp.log"
+    if ! apt-get install "${APT_OPTS[@]}" koha-common 2>&1 | tee "$LOG_DIR/apt-$stamp.log"; then
+        warn "apt-get install fallo (a veces es solo un servicio que no reinicio en el postinst). Reintentando con dpkg --configure -a ..."
+        dpkg --configure -a 2>&1 | tee -a "$LOG_DIR/apt-$stamp.log" || die "koha-common quedo sin configurar. Revise $LOG_DIR/apt-$stamp.log; los respaldos estan en: ${backup_dirs[*]:-ninguno}"
+    fi
     ok "koha-common instalado: $(koha_pkg_version)"
 
     # 4) Esquema.

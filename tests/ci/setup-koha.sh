@@ -80,7 +80,7 @@ fi
 # shellcheck source=../../scripts/lib/common.sh
 . "$HERE/../../scripts/lib/common.sh"
 plack_restart "$INST"
-service memcached restart || { pkill -x memcached || true; sleep 1; service memcached start; }
+service memcached restart
 koha-rebuild-zebra -f -v "$INST"
 koha-zebra --restart "$INST" || koha-zebra --start "$INST" || true
 echo "::endgroup::"
