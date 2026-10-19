@@ -70,9 +70,10 @@ ok "db.sql.gz ($(du -h "$OUT/db.sql.gz" | cut -f1))"
 # 2) koha-dump estandar (para usar con koha-restore si se reconstruye el servidor).
 log "Ejecutando koha-dump..."
 SPOOL="$(koha_conf_value "$INSTANCE" backupdir)"; SPOOL="${SPOOL:-/var/spool/koha/$INSTANCE}"
-KD_OPTS=(--quiet)
+# Sin --quiet: en varias versiones koha-dump --quiet termina con codigo 1 aunque el volcado sea correcto.
+KD_OPTS=()
 [ "$EXCLUDE_INDEXES" = "1" ] && KD_OPTS+=(--exclude-indexes)
-koha-dump "${KD_OPTS[@]}" "$INSTANCE"
+koha-dump "${KD_OPTS[@]}" "$INSTANCE" | sed 's/^/    /'
 newest() { find "$SPOOL" -maxdepth 1 -type f -name "$1" ! -name '*schema*' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-; }
 KD_SQL="$(newest "$INSTANCE-*.sql.gz")"
 KD_TAR="$(newest "$INSTANCE-*.tar.gz")"
