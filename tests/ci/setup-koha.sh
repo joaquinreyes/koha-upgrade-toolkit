@@ -8,6 +8,16 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 export DEBIAN_FRONTEND=noninteractive
 
 echo "::group::Paquetes base"
+# Debian 11 ya no tiene soporte: sus paquetes estan en archive.debian.org (igual que en un servidor real).
+if grep -q 'VERSION_CODENAME=bullseye' /etc/os-release; then
+    cat > /etc/apt/sources.list <<'SRC'
+deb http://archive.debian.org/debian bullseye main
+deb http://archive.debian.org/debian bullseye-updates main
+deb http://archive.debian.org/debian-security bullseye-security main
+SRC
+    rm -f /etc/apt/sources.list.d/debian.sources
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+fi
 apt-get update -q
 apt-get install -y -q curl gnupg ca-certificates procps rsync openssl sudo
 curl -fsSL https://debian.koha-community.org/koha/gpg.asc | gpg --dearmor > /usr/share/keyrings/koha-keyring.gpg

@@ -62,7 +62,9 @@ xcurl() {
         local hp host port
         hp="$(echo "$url" | sed -E 's#^https?://([^/]+).*#\1#')"
         host="${hp%%:*}"; port="${hp##*:}"
-        [ "$port" = "$hp" ] && { [[ "$url" == https* ]] && port=443 || port=80; }
+        if [ "$port" = "$hp" ]; then
+            if [[ "$url" == https* ]]; then port=443; else port=80; fi
+        fi
         opts+=(--resolve "$host:$port:127.0.0.1")
     fi
     curl "${opts[@]}" "$@" "$url"

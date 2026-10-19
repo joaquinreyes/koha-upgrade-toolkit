@@ -84,6 +84,8 @@ case "$MODE" in
         for f in "${FILES[@]}"; do
             run cp -p "$f" "$f.bak-$STAMP"
             run sed -i -E "s/\b$CUR\b/$NEXT/g" "$f"
+            # Las versiones sin soporte viven en archive.debian.org; la nueva esta en deb.debian.org.
+            run sed -i -E 's#archive\.debian\.org/debian-security#deb.debian.org/debian-security#g; s#archive\.debian\.org/debian#deb.debian.org/debian#g' "$f"
             log "Actualizado $f (copia en $f.bak-$STAMP)"
         done
         run apt-get update -q

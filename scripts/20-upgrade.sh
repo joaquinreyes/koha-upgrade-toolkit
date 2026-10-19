@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
         *) INSTANCE="$1"; shift ;;
     esac
 done
-[ -n "$INSTANCE" ] && [ -n "$TARGETS" ] || usage 1
+if [ -z "$INSTANCE" ] || [ -z "$TARGETS" ]; then usage 1; fi
 require_root
 require_instance "$INSTANCE"
 require_cmd apt-get dpkg-query curl koha-upgrade-schema koha-list

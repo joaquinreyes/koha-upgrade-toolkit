@@ -76,7 +76,7 @@ koha-dump "${KD_OPTS[@]}" "$INSTANCE"
 newest() { find "$SPOOL" -maxdepth 1 -type f -name "$1" ! -name '*schema*' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-; }
 KD_SQL="$(newest "$INSTANCE-*.sql.gz")"
 KD_TAR="$(newest "$INSTANCE-*.tar.gz")"
-[ -n "$KD_SQL" ] && [ -n "$KD_TAR" ] || die "No se encontraron los archivos de koha-dump en $SPOOL"
+{ [ -n "$KD_SQL" ] && [ -n "$KD_TAR" ]; } || die "No se encontraron los archivos de koha-dump en $SPOOL"
 cp -p "$KD_SQL" "$KD_TAR" "$OUT/koha-dump/"
 ok "koha-dump: $(basename "$KD_SQL"), $(basename "$KD_TAR")"
 

@@ -60,7 +60,7 @@ echo "## mysqlcheck --analyze (actualiza estadisticas del optimizador)"
 if [ "$DRY_RUN" = "1" ]; then
     run "$(db_check)" --analyze "$DB"
 else
-    "$(db_check)" --defaults-extra-file="$DEFAULTS" --analyze "$DB" >/dev/null 2>&1 && echo "ANALYZE completado." || echo "ANALYZE con advertencias."
+    if "$(db_check)" --defaults-extra-file="$DEFAULTS" --analyze "$DB" >/dev/null 2>&1; then echo "ANALYZE completado."; else echo "ANALYZE con advertencias."; fi
 fi
 
 if [ "$OPTIMIZE" = "1" ]; then

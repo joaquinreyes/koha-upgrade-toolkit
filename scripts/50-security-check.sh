@@ -141,7 +141,7 @@ fi
 
 # --- 5. Actualizaciones de seguridad pendientes ---
 echo "-- Actualizaciones del SO"
-[ "$APT_UPDATE" = "1" ] && apt-get update -q >/dev/null 2>&1 || true
+if [ "$APT_UPDATE" = "1" ]; then apt-get update -q >/dev/null 2>&1 || warn "apt-get update fallo"; fi
 SEC_COUNT="$(apt-get -s upgrade 2>/dev/null | awk '/^Inst / && /[Ss]ecurity/' | wc -l | tr -d ' ')"
 ALL_COUNT="$(apt-get -s upgrade 2>/dev/null | awk '/^Inst /' | wc -l | tr -d ' ')"
 if [ "$SEC_COUNT" -gt 0 ]; then
