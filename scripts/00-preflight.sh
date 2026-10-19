@@ -64,7 +64,7 @@ echo "Fuente apt Koha:"
 grep -rhs 'koha-community' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sed 's/^/                    /' || echo "                    (no encontrada)"
 
 # --- Base de datos ---
-DB_SERVER_VER="$(koha_sql "$INSTANCE" "SELECT VERSION()" 2>/dev/null || true)"
+DB_SERVER_VER="$(koha_sql "$INSTANCE" "SELECT VERSION()" || true)"
 echo "Servidor BD:        ${DB_SERVER_VER:-no se pudo conectar}"
 [ -n "$DB_SERVER_VER" ] || problem "No hay conexion a la BD de la instancia."
 echo "Base de datos:      $(instance_db_name "$INSTANCE") @ $(koha_conf_value "$INSTANCE" hostname)"
@@ -72,14 +72,18 @@ if [ -n "$DB_SERVER_VER" ]; then
     DB_SIZE="$(koha_sql "$INSTANCE" "SELECT ROUND(SUM(data_length+index_length)/1024/1024,1) FROM information_schema.tables WHERE table_schema=DATABASE()")"
     echo "Tamano BD (MB):     $DB_SIZE"
     echo "Conteos:"
-    record_counts "$INSTANCE" | sed 's/^/                    /'
+    if COUNTS="$(record_counts "$INSTANCE")"; then
+        while IFS= read -r line; do printf '                    %s\n' "$line"; done <<< "$COUNTS"
+    else
+        problem "No se pudieron leer los conteos de registros."
+    fi
 fi
 
 # --- Motor de busqueda ---
 ENGINE="$(koha_sql "$INSTANCE" "SELECT value FROM systempreferences WHERE variable='SearchEngine'" 2>/dev/null || true)"
 echo "SearchEngine:       ${ENGINE:-Zebra (por defecto)}"
-if grep -q '<elasticsearch>' "$(koha_conf "$INSTANCE")"; then
-    echo "Elasticsearch conf: $(perl -0777 -ne 'print $1 if m{<elasticsearch>.*?<server>(.*?)</server>}s' "$(koha_conf "$INSTANCE")")"
+if [ "$ENGINE" = "Elasticsearch" ]; then
+    echo "Elasticsearch:      $(perl -0777 -ne 'print $1 if m{<elasticsearch>.*?<server>(.*?)</server>}s' "$(koha_conf "$INSTANCE")")"
 fi
 if pgrep -u "$(instance_user "$INSTANCE")" -f zebrasrv >/dev/null 2>&1; then
     ok "zebrasrv en ejecucion."

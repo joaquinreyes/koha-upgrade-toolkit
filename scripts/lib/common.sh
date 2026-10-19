@@ -63,9 +63,14 @@ koha_conf_value() {
     local inst="$1" key="$2"
     KEY="$key" perl -0777 -ne '
         my $k = $ENV{KEY};
-        if (m{<config>(.*?)</config>}s) {
+        # El bloque principal es <config> solo en su linea (hay otros <config>x</config> en serverinfo).
+        if (m{^\s*<config>\s*$(.*?)^\s*</config>}ms) {
             my $c = $1;
-            print $1 if $c =~ m{<\Q$k\E>\s*(.*?)\s*</\Q$k\E>}s;
+            if ($c =~ m{<\Q$k\E>\s*(.*?)\s*</\Q$k\E>}s) {
+                my $v = $1;
+                $v =~ s/&lt;/</g; $v =~ s/&gt;/>/g; $v =~ s/&quot;/"/g; $v =~ s/&apos;/\x27/g; $v =~ s/&amp;/&/g;
+                print $v;
+            }
         }' "$(koha_conf "$inst")" 2>/dev/null || true
 }
 
@@ -106,7 +111,9 @@ instance_db_defaults() {
         echo "host=${host:-localhost}"
         [ -n "$port" ] && echo "port=$port"
         echo "user=$user"
-        echo "password=$pass"
+        # Entre comillas para admitir caracteres como # o espacios.
+        pass="${pass//\\/\\\\}"; pass="${pass//\"/\\\"}"
+        echo "password=\"$pass\""
     } > "$f"
     printf '%s' "$f"
 }
@@ -116,8 +123,9 @@ instance_db_name() { koha_conf_value "$1" database; }
 # Ejecuta SQL en la BD de la instancia. Salida sin cabeceras, separada por tabs.
 koha_sql() {
     local inst="$1" sql="$2" defaults db
-    defaults="$(instance_db_defaults "$inst")"
+    defaults="$(instance_db_defaults "$inst")" || return 1
     db="$(instance_db_name "$inst")"
+    [ -n "$db" ] || { fail "No se pudo leer el nombre de la BD de $inst"; return 1; }
     "$(db_client)" --defaults-extra-file="$defaults" -N -B -e "$sql" "$db"
 }
 
@@ -163,8 +171,10 @@ os_codename() { local c; c="$(os_release VERSION_CODENAME)"; echo "${c:-unknown}
 # Conteos clave de una instancia, formato clave=valor.
 record_counts() {
     local inst="$1" t
+    local n
     for t in biblio biblioitems biblio_metadata items borrowers authorised_values; do
-        printf '%s=%s\n' "$t" "$(koha_sql "$inst" "SELECT COUNT(*) FROM $t")"
+        n="$(koha_sql "$inst" "SELECT COUNT(*) FROM $t")" || return 1
+        printf '%s=%s\n' "$t" "$n"
     done
 }
 
